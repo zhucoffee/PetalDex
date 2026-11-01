@@ -1,6 +1,8 @@
 """Convert PetalDex HDF5 episodes to the training Zarr schema."""
 import argparse
 from pathlib import Path
+import shutil
+import tempfile
 import cv2
 import h5py
 import numpy as np
@@ -8,12 +10,7 @@ import zarr
 from numcodecs import Blosc
 
 
-def convert(source, output):
-    files = sorted(Path(source).glob('episode_*.h5'))
-    if not files:
-        raise ValueError(f'No episode_*.h5 files in {source}')
-    if Path(output).exists():
-        raise FileExistsError(output)
+def _write_episodes(files, output):
     root = zarr.open_group(str(output), mode='w')
     data = root.create_group('data')
     ends = []
@@ -52,6 +49,27 @@ def convert(source, output):
         print(f'Converted {path.name}: {n} frames', flush=True)
     root.create_group('meta').create_dataset('episode_ends', data=np.asarray(ends,dtype=np.int64))
     print(f'Saved {len(ends)} episodes, {total} frames to {output}')
+
+
+def convert(source, output):
+    source_path = Path(source).expanduser().resolve()
+    output_path = Path(output).expanduser().resolve()
+    files = sorted(source_path.glob('episode_*.h5'))
+    if not files:
+        raise ValueError(f'No episode_*.h5 files in {source_path}')
+    if output_path.exists():
+        raise FileExistsError(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = Path(tempfile.mkdtemp(
+        prefix=f'.{output_path.name}.', dir=output_path.parent
+    ))
+    try:
+        _write_episodes(files, temporary_path)
+        temporary_path.rename(output_path)
+    except BaseException:
+        shutil.rmtree(temporary_path, ignore_errors=True)
+        raise
+    print(f'Completed dataset: {output_path}')
 
 
 def main():

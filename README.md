@@ -1,10 +1,14 @@
 # 🌸 PetalDex
 
-Policy training and action prediction for bimanual flower arrangement with **Tianji Arms and Wuji Hands**.
+Code for **Co-Creation in Bloom: Artistic Co-Creation Manipulation with Deformable Flower Petals**, RSS 2026 Workshop *Embodied4Arts*.
+
+Policy training and offline action prediction for bimanual flower arrangement with **Tianji Arms and Wuji Hands**.
 
 [Project Website](https://petaldex.github.io/) · [Dataset](https://huggingface.co/datasets/jasonGUself/PetalDex)
 
 **Download data → Train a policy → Predict actions.**
+
+This release includes dataset converters, the policy and training configuration, and prediction from recorded observations. Pretrained PetalDex checkpoints and hardware control drivers are not included. The release has been reviewed statically; a fresh installation, end-to-end training, and real-robot execution have not been verified. See [release scope and limitations](docs/REPRODUCIBILITY.md).
 
 ## Repository layout
 
@@ -26,14 +30,14 @@ Policy training and action prediction for bimanual flower arrangement with **Tia
 Use Linux x86_64 with an NVIDIA GPU and a driver supporting CUDA 12.8. Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run:
 
 ```bash
-git clone https://github.com/vinkda/PetalDex.git
+git clone https://github.com/zhucoffee/PetalDex.git
 cd PetalDex
 uv sync --frozen
 source .venv/bin/activate
 export PROJECT_ROOT="$PWD"
 ```
 
-Python 3.9.23 and PyTorch 2.8.0 are specified in `pyproject.toml`. Run the commands below from the project root with this environment activated.
+Python 3.9.23 and PyTorch 2.8.0 are specified in `pyproject.toml`. Run the commands below from the project root with this environment activated. The supplied environment and lock file use the Aliyun PyPI mirror; package versions and artifact sources are retained from the original environment. Other operating systems and dependency versions are not covered by this lock file.
 
 ### 2. Download and prepare data
 
@@ -49,6 +53,8 @@ python scripts/data/convert_hdf5_to_zarr.py \
 
 Replace `robot_human_co-creation` with `robot_auto` in both paths to use the other subset.
 
+The converter expects `episode_*.h5` files with 224 × 224 JPEG images. It creates a new destination and refuses to overwrite an existing dataset. See [data format](docs/DATA.md) for keys, dimensions, and conversion details.
+
 ### 3. Train
 
 ```bash
@@ -58,7 +64,7 @@ bash scripts/training/run_train_ddp.sh \
 
 Arguments: dataset path, experiment name, batch size per GPU, epochs and GPU IDs. For two GPUs, replace `0` with `0,1`.
 
-Checkpoints and `normalizer.pkl` are saved under `data/outputs/`. Training settings are in `psi_policy/config/psi_policy_workspace.yaml`. W&B logging defaults to offline; the image encoder downloads pretrained weights on first use.
+Checkpoints and `normalizer.pkl` are saved under `data/outputs/`. Training settings are in `psi_policy/config/psi_policy_workspace.yaml`. W&B logging defaults to offline; the image encoder downloads pretrained weights on first use. The default configuration uses all episodes for training (`val_ratio: 0`); it does not produce held-out validation metrics.
 
 ### 4. Predict actions
 
@@ -74,7 +80,9 @@ python scripts/inference/policy.py \
 
 Replace `/path/to/training_run` with your output directory under `data/outputs/`. Episode and frame indices start at zero.
 
-The script prints and saves **16 × 54 joint targets**, ordered as **left arm (7), right arm (7), left hand (20), right hand (20)**, in the same units as the dataset.
+Normalization is also embedded in the checkpoint, so `--normalizer` is optional. Weight selection defaults to the checkpoint's EMA setting; use `--weights model` or `--weights ema` to select explicitly.
+
+With the supplied configuration, the script prints and saves **16 × 54 joint targets**, ordered as **left arm (7), right arm (7), left hand (20), right hand (20)**, in the same units as the dataset. It reads a recorded observation and saves an action chunk; live sensing and robot execution require a separate controller. Only load checkpoints and normalizer files from sources you trust: these files use Python pickle serialization.
 
 ## Use your own recordings
 
@@ -87,3 +95,29 @@ python scripts/data/convert_mcap_to_wuji_bimanual_zarr.py \
 ```
 
 `BAG_ROOT` contains the `rosbag_*` recording folders. Use the resulting Zarr path in the training command above.
+
+## Contribute
+
+Questions, bug reports, and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the information that helps reproduce a problem. Please include your environment, command, and relevant log excerpt.
+
+## Citation
+
+If you use PetalDex in research, please cite:
+
+```bibtex
+@inproceedings{zhu2026petaldex,
+  title = {Co-Creation in Bloom: Artistic Co-Creation Manipulation with Deformable Flower Petals},
+  author = {Zhu, Kefei and Gu, Jinzhong and Xin, Yue and He, Guanqi and Qu, Yi and Yang, Yaodong and Chen, Yuanpei and Dong, Hao},
+  booktitle = {RSS 2026 Workshop Embodied4Arts},
+  year = {2026},
+  url = {https://petaldex.github.io/}
+}
+```
+
+Machine-readable citation metadata is in [CITATION.cff](CITATION.cff).
+
+## Acknowledgements and license
+
+The initial code release was prepared by **Yue Xin ([@vinkda](https://github.com/vinkda))**. This repository starts from `vinkda/PetalDex` at commit `f4c550fb1b51ee93d9f229989740a6773aeb9b20` and adds community documentation and release fixes. The internal `psi_policy` package name is retained for configuration and checkpoint compatibility.
+
+We thank [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) for the adapted utilities. Code is released under the [MIT License](LICENSE); retained upstream notices and file mappings are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The [dataset](https://huggingface.co/datasets/jasonGUself/PetalDex) is distributed separately under the terms in its dataset card.

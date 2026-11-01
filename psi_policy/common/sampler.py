@@ -145,7 +145,10 @@ class SequenceSampler:
                 try:
                     sample[:k_data] = input_arr[buffer_start_idx:buffer_start_idx+k_data]
                 except Exception as e:
-                    import pdb; pdb.set_trace()
+                    raise RuntimeError(
+                        f"Failed to read {key!r} at rows "
+                        f"{buffer_start_idx}:{buffer_start_idx + k_data}"
+                    ) from e
             data = sample
             if (sample_start_idx > 0) or (sample_end_idx < self.sequence_length):
                 data = np.zeros(

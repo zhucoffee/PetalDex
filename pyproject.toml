@@ -1,8 +1,10 @@
 [project]
-name = "psipolicy-env"
+name = "petaldex"
 version = "0.1.0"
-description = "Multimodal robot policy training and inference"
+description = "Bimanual flower arrangement policy training and offline action prediction"
 readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "PetalDex contributors" }]
 requires-python = "==3.9.23"
 dependencies = [
     "accelerate==1.2.0",
@@ -36,6 +38,12 @@ dependencies = [
     "numcodecs==0.12.1",
     "setuptools==80.9.0",
 ]
+
+[project.urls]
+Homepage = "https://petaldex.github.io/"
+Repository = "https://github.com/zhucoffee/PetalDex"
+Issues = "https://github.com/zhucoffee/PetalDex/issues"
+Dataset = "https://huggingface.co/datasets/jasonGUself/PetalDex"
 
 [build-system]
 requires = ["setuptools==80.9.0", "wheel"]

@@ -19,6 +19,8 @@ import random
 import tqdm
 import numpy as np
 import pickle
+import math
+from contextlib import nullcontext
 
 from accelerate import Accelerator, DistributedDataParallelKwargs
 
@@ -35,7 +37,7 @@ from psi_policy.common.workspace_utils import log_action_mse, create_logger, sta
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class PsiPolicyWorkspace(BaseWorkspace):
-    include_keys = ['global_step', 'epoch']
+    include_keys = ['global_step', 'optimizer_step', 'epoch']
 
     def __init__(self, cfg: OmegaConf, normalizer_path: str=None):
         super().__init__(cfg)
@@ -48,7 +50,11 @@ class PsiPolicyWorkspace(BaseWorkspace):
 
         # configure model
         self.model: PsiPolicy
-        self.model = hydra.utils.instantiate(cfg.policy)
+        model_cfg = copy.deepcopy(cfg)
+        if cfg.optimizer.start_ckpt_path is not None:
+            # The checkpoint supplies encoder weights; avoid a redundant download.
+            OmegaConf.update(model_cfg, 'policy.obs_encoder.pretrained', False, force_add=True)
+        self.model = hydra.utils.instantiate(model_cfg.policy)
 
         self.ema_model: PsiPolicy = None
         if cfg.training.use_ema:
@@ -58,12 +64,32 @@ class PsiPolicyWorkspace(BaseWorkspace):
         if not cfg.training.resume:
             self.exclude_keys = ['optimizer']
 
+        self.global_step = 0
+        self.optimizer_step = 0
+        self.epoch = 0
+        self._pending_optimizer_state = None
         if cfg.optimizer.start_ckpt_path is not None:
             print("\n"+"="*100)
             print(f"Load checkpoint from: {cfg.optimizer.start_ckpt_path}")
             print("="*100+"\n")
 
-            self.load_checkpoint(path=cfg.optimizer.start_ckpt_path)
+            payload = self.load_checkpoint(
+                path=cfg.optimizer.start_ckpt_path,
+                exclude_keys=('optimizer',) if cfg.training.use_ema else ('optimizer', 'ema_model'),
+                include_keys=self.include_keys,
+                map_location='cpu',
+            )
+            if cfg.training.use_ema and 'ema_model' not in payload['state_dicts']:
+                self.ema_model.load_state_dict(self.model.state_dict())
+            if cfg.training.resume:
+                self._pending_optimizer_state = payload['state_dicts'].get('optimizer')
+                if self._pending_optimizer_state is None:
+                    raise ValueError(
+                        'This checkpoint has no optimizer state. Use training.resume=False '
+                        'for weight initialization, or resume from a full training checkpoint.'
+                    )
+                if 'optimizer_step' not in payload['pickles']:
+                    self.optimizer_step = self.global_step // int(cfg.training.gradient_accumulate_every)
             # Advance the saved epoch before resuming to avoid duplicate epoch log entries.
             pe = start_epoch_index_from_checkpoint_path(cfg.optimizer.start_ckpt_path)
             if pe is not None:
@@ -77,14 +103,14 @@ class PsiPolicyWorkspace(BaseWorkspace):
             # Reset the scheduler step when initializing a fresh optimizer.
             if not cfg.training.resume:
                 self.global_step = 0
+                self.optimizer_step = 0
                 print("training.resume=False -> reset global_step to 0 for fresh optimizer schedule.")
-        else:
-
-            self.global_step = 0
-            self.epoch = 0
 
     def run(self):
         cfg = copy.deepcopy(self.cfg)
+        accumulate_every = int(cfg.training.gradient_accumulate_every)
+        if accumulate_every < 1:
+            raise ValueError('training.gradient_accumulate_every must be positive')
 
         # Set GPU device before initializing accelerator
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
@@ -126,14 +152,14 @@ class PsiPolicyWorkspace(BaseWorkspace):
             weight_decay=cfg.optimizer.weight_decay,
             betas=cfg.optimizer.betas,
         )
+        if self._pending_optimizer_state is not None:
+            self.optimizer.load_state_dict(self._pending_optimizer_state)
+            self._pending_optimizer_state = None
         # Initialize learning-rate metadata for checkpoints containing model weights.
         # The scheduler uses initial_lr when resuming from a nonzero global step.
         for pg in self.optimizer.param_groups:
             if 'initial_lr' not in pg:
                 pg['initial_lr'] = pg['lr']
-
-        if cfg.training.use_ema:
-            self.ema_model = copy.deepcopy(self.model)
 
         # configure dataset
         dataset: BaseImageDataset
@@ -150,6 +176,11 @@ class PsiPolicyWorkspace(BaseWorkspace):
                 normalizer = pickle.load(open(cfg.optimizer.start_normalizer_path, 'rb'))
                 pickle.dump(normalizer, open(normalizer_path, 'wb'))
 
+        elif cfg.training.resume and cfg.optimizer.start_ckpt_path is not None:
+            # Full resume must keep the normalization used by the saved weights.
+            normalizer_path = os.path.join(self.output_dir, 'normalizer.pkl')
+            if accelerator.is_local_main_process:
+                pickle.dump(copy.deepcopy(self.model.normalizer).cpu(), open(normalizer_path, 'wb'))
         else:
             # compute normalizer on the main process and save to disk
             normalizer_path = os.path.join(self.output_dir, 'normalizer.pkl')
@@ -171,16 +202,26 @@ class PsiPolicyWorkspace(BaseWorkspace):
         if cfg.training.use_ema:
             self.ema_model.set_normalizer(normalizer)
 
-        # configure lr scheduler
+        # Prepare before counting local batches, so each rank uses the actual
+        # number of optimizer updates for its learning-rate schedule.
+        self.model.to(device)
+        train_dataloader, val_dataloader, self.model, self.optimizer = accelerator.prepare(
+            train_dataloader, val_dataloader, self.model, self.optimizer
+        )
+        num_train_batches = len(train_dataloader)
+        if cfg.training.max_train_steps is not None:
+            num_train_batches = min(num_train_batches, int(cfg.training.max_train_steps))
+        if num_train_batches < 1:
+            raise ValueError('Training requires at least one batch')
+
+        # Step the scheduler once per actual optimizer update, including a
+        # shorter accumulation window at the end of an epoch.
         lr_scheduler = get_scheduler(
             cfg.training.lr_scheduler,
-            optimizer=self.optimizer,
+            optimizer=self.optimizer.optimizer,
             num_warmup_steps=cfg.training.lr_warmup_steps,
-            num_training_steps=(
-                len(train_dataloader) * cfg.training.num_epochs) \
-                    // cfg.training.gradient_accumulate_every,
-            # Schedule learning rates by optimizer update count.
-            last_epoch=self.global_step-1
+            num_training_steps=math.ceil(num_train_batches / accumulate_every) * cfg.training.num_epochs,
+            last_epoch=self.optimizer_step-1
         )
 
         # configure ema
@@ -189,6 +230,8 @@ class PsiPolicyWorkspace(BaseWorkspace):
             ema = hydra.utils.instantiate(
                 cfg.ema,
                 model=self.ema_model)
+            if cfg.training.resume:
+                ema.optimization_step = self.optimizer_step
 
         # configure checkpoint
         topk_manager = TopKCheckpointManager(
@@ -196,12 +239,6 @@ class PsiPolicyWorkspace(BaseWorkspace):
             **cfg.checkpoint.topk
         )
 
-        # accelerator
-        self.model.to(device)
-        train_dataloader, val_dataloader, self.model, self.optimizer, lr_scheduler = accelerator.prepare(
-            train_dataloader, val_dataloader, self.model, self.optimizer, lr_scheduler
-        )
-        device = self.model.device
         if self.ema_model is not None:
             self.ema_model.to(device)
 
@@ -210,7 +247,8 @@ class PsiPolicyWorkspace(BaseWorkspace):
 
         # training loop
         log_path = os.path.join(self.output_dir, 'logs.json.txt')
-        with JsonLogger(log_path) as json_logger:
+        log_context = JsonLogger(log_path) if accelerator.is_main_process else nullcontext()
+        with log_context as json_logger:
 
             # the number of epochs to train
             for local_epoch_idx in range(cfg.training.num_epochs):
@@ -219,6 +257,7 @@ class PsiPolicyWorkspace(BaseWorkspace):
                 step_log = dict()
 
                 train_losses = list()
+                self.optimizer.zero_grad()
                 with tqdm.tqdm(train_dataloader, desc=f"Training epoch {self.epoch}",
                         leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
 
@@ -231,19 +270,22 @@ class PsiPolicyWorkspace(BaseWorkspace):
 
                         # compute loss
                         raw_loss = self.model(batch, training=True)
-                        loss = raw_loss / cfg.training.gradient_accumulate_every
+                        window_start = (batch_idx // accumulate_every) * accumulate_every
+                        window_size = min(accumulate_every, num_train_batches - window_start)
+                        loss = raw_loss / window_size
                         accelerator.backward(loss)
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
 
                         # step optimizer
-                        if self.global_step % cfg.training.gradient_accumulate_every == 0:
+                        is_last_batch = batch_idx + 1 == num_train_batches
+                        if (batch_idx + 1) % accumulate_every == 0 or is_last_batch:
+                            accelerator.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                             self.optimizer.step()
                             self.optimizer.zero_grad()
-                            lr_scheduler.step()
-
-                        # update ema
-                        if cfg.training.use_ema:
-                            ema.step(accelerator.unwrap_model(self.model))
+                            if not accelerator.optimizer_step_was_skipped:
+                                lr_scheduler.step()
+                                self.optimizer_step += 1
+                                if cfg.training.use_ema:
+                                    ema.step(accelerator.unwrap_model(self.model))
 
                         # logging
                         raw_loss_cpu = raw_loss.item()
@@ -255,15 +297,14 @@ class PsiPolicyWorkspace(BaseWorkspace):
                             'epoch': self.epoch,
                             'lr': lr_scheduler.get_last_lr()[0]
                         }
-                        is_last_batch = (batch_idx == (len(train_dataloader)-1))
                         if not is_last_batch:
                             # log of last step is combined with validation and rollout
                             accelerator.log(step_log, step=self.global_step)
-                            json_logger.log(step_log)
+                            if json_logger is not None:
+                                json_logger.log(step_log)
                             self.global_step += 1
 
-                        if (cfg.training.max_train_steps is not None) \
-                            and batch_idx >= (cfg.training.max_train_steps-1):
+                        if is_last_batch:
                             break
 
                 # at the end of each epoch
@@ -286,7 +327,7 @@ class PsiPolicyWorkspace(BaseWorkspace):
                                 disable=not accelerator.is_main_process) as tepoch:
                             for batch_idx, batch in enumerate(tepoch):
                                 batch = dict_apply(batch, lambda x: x.to(device, non_blocking=True))
-                                loss = self.model(batch, training=False)
+                                loss = policy(batch, training=False)
                                 val_losses.append(loss)
                                 if (cfg.training.max_val_steps is not None) \
                                     and batch_idx >= (cfg.training.max_val_steps-1):
@@ -333,7 +374,9 @@ class PsiPolicyWorkspace(BaseWorkspace):
                         del pred_action
 
                 # checkpoint
-                if (self.epoch % cfg.training.checkpoint_every) == 0 and accelerator.is_main_process:
+                save_epoch = (self.epoch % cfg.training.checkpoint_every) == 0
+                save_epoch = save_epoch or local_epoch_idx + 1 == cfg.training.num_epochs
+                if save_epoch and accelerator.is_main_process:
                     # unwrap the model to save ckpt
                     model_ddp = self.model
                     self.model = accelerator.unwrap_model(self.model)
@@ -363,7 +406,8 @@ class PsiPolicyWorkspace(BaseWorkspace):
                 # end of epoch
                 # log of last step is combined with validation and rollout
                 accelerator.log(step_log, step=self.global_step)
-                json_logger.log(step_log)
+                if json_logger is not None:
+                    json_logger.log(step_log)
                 self.global_step += 1
                 self.epoch += 1
 

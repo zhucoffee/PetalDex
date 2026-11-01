@@ -207,6 +207,7 @@ class PsiPolicy(BaseImagePolicy):
 Return normalized and unnormalized candidates and their alignment scores
 (negative distances). action and action_pred contain the selected
 unnormalized candidate."""
+        self._validate_alignment_inputs(obs_dict, prev_traj, latency_step)
         assert 'past_action' not in obs_dict  # Past-action conditioning is disabled.
         nobs = self.normalizer.normalize(obs_dict)
         obs_tokens = self.obs_encoder(nobs, training=False).repeat_interleave(32, dim=0)
@@ -257,6 +258,7 @@ unnormalized candidate."""
         obs_dict: named observation tensors matching the task schema
         result: action and action_pred tensors
         """
+        self._validate_alignment_inputs(obs_dict, prev_traj, latency_step)
         assert 'past_action' not in obs_dict # Past-action conditioning is disabled.
         # normalize input
         nobs = self.normalizer.normalize(obs_dict)
@@ -296,6 +298,20 @@ unnormalized candidate."""
             'action_normalized': selected_normalized,
         }
         return result
+
+    def _validate_alignment_inputs(self, obs_dict, prev_traj, latency_step):
+        """The optional trajectory-alignment helpers operate on one stream."""
+        if not obs_dict or any(value.shape[0] != 1 for value in obs_dict.values()):
+            raise ValueError('Trajectory-alignment prediction requires batch size 1')
+        if not isinstance(latency_step, int) or not 0 <= latency_step < self.action_horizon - 8:
+            raise ValueError(f'latency_step must be an integer in [0, {self.action_horizon - 9}]')
+        if prev_traj is None or tuple(prev_traj.shape) != (1, self.action_horizon, self.action_dim):
+            raise ValueError(
+                f'prev_traj must be a normalized tensor of shape '
+                f'(1, {self.action_horizon}, {self.action_dim})'
+            )
+        if prev_traj.device != self.device:
+            raise ValueError('prev_traj and policy must be on the same device')
 
     # ========= training  ============
     def set_normalizer(self, normalizer: LinearNormalizer):
@@ -352,7 +368,8 @@ unnormalized candidate."""
         if valid_real_samples.sum() > 0:
             loss = (min_distances * valid_real_samples).sum() / valid_real_samples.sum()
         else:
-            loss = torch.tensor(0.0, device=real_samples.device)
+            # Keep a graph-connected zero when every candidate is rejected.
+            loss = fake_samples.sum() * 0.0
 
         return loss
 

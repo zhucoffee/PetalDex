@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+message: "If you use PetalDex, please cite the workshop paper below."
+title: PetalDex
+type: software
+version: 0.1.0
+date-released: 2026-11-01
+license: MIT
+url: "https://petaldex.github.io/"
+repository-code: "https://github.com/zhucoffee/PetalDex"
+authors:
+  - family-names: Zhu
+    given-names: Kefei
+  - family-names: Gu
+    given-names: Jinzhong
+  - family-names: Xin
+    given-names: Yue
+  - family-names: He
+    given-names: Guanqi
+  - family-names: Qu
+    given-names: Yi
+  - family-names: Yang
+    given-names: Yaodong
+  - family-names: Chen
+    given-names: Yuanpei
+  - family-names: Dong
+    given-names: Hao
+preferred-citation:
+  type: conference-paper
+  title: "Co-Creation in Bloom: Artistic Co-Creation Manipulation with Deformable Flower Petals"
+  authors:
+    - family-names: Zhu
+      given-names: Kefei
+    - family-names: Gu
+      given-names: Jinzhong
+    - family-names: Xin
+      given-names: Yue
+    - family-names: He
+      given-names: Guanqi
+    - family-names: Qu
+      given-names: Yi
+    - family-names: Yang
+      given-names: Yaodong
+    - family-names: Chen
+      given-names: Yuanpei
+    - family-names: Dong
+      given-names: Hao
+  year: 2026
+  conference:
+    name: "RSS Workshop Embodied4Arts"
+  url: "https://petaldex.github.io/"

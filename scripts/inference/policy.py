@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Load a trained policy and predict an action chunk from a Zarr observation."""
 import argparse
+import copy
 import os
 from pathlib import Path
 import pickle
@@ -19,19 +20,27 @@ os.environ.setdefault("PROJECT_ROOT", str(PROJECT_ROOT))
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 
-def load_policy(checkpoint, normalizer=None, device="cuda:0"):
-    """Load model weights and normalization parameters from a training checkpoint."""
+def load_policy(checkpoint, normalizer=None, device="cuda:0", weights="auto"):
+    """Load a policy without constructing a training workspace or optimizer.
+
+    Checkpoints and optional normalizers use pickle; load only trusted files.
+    """
     with Path(checkpoint).expanduser().open("rb") as stream:
         payload = torch.load(stream, pickle_module=dill, map_location="cpu")
-    cfg = payload["cfg"]
+    cfg = copy.deepcopy(payload["cfg"])
     cfg.optimizer.start_ckpt_path = None
     OmegaConf.update(cfg, "policy.obs_encoder.pretrained", False, force_add=True)
-    workspace = hydra.utils.get_class(cfg._target_)(cfg)
-    workspace.load_payload(payload)
-    policy = workspace.model
+    if weights not in {"auto", "model", "ema"}:
+        raise ValueError("weights must be auto, model, or ema")
+    use_ema = bool(cfg.training.use_ema) if weights == "auto" else weights == "ema"
+    state_key = "ema_model" if use_ema else "model"
+    if state_key not in payload["state_dicts"]:
+        raise ValueError(f"Checkpoint has no {state_key} weights")
+    policy = hydra.utils.instantiate(cfg.policy)
+    policy.load_state_dict(payload["state_dicts"][state_key])
     if normalizer is not None:
         with Path(normalizer).expanduser().open("rb") as stream:
-            policy.normalizer = pickle.load(stream)
+            policy.set_normalizer(pickle.load(stream))
     return policy.eval().to(device), cfg
 
 
@@ -78,6 +87,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ckpt", required=True, help="Training checkpoint")
     parser.add_argument("--normalizer", help="Optional normalizer.pkl from the same training run")
+    parser.add_argument("--weights", choices=("auto", "model", "ema"), default="auto",
+                        help="auto uses EMA when the checkpoint training configuration enables it")
     parser.add_argument("--zarr", required=True, help="Converted demonstration dataset")
     parser.add_argument("--episode", type=int, default=0, help="Zero-based episode index")
     parser.add_argument("--frame", type=int, default=0, help="Zero-based frame index within the episode")
@@ -90,7 +101,7 @@ def main():
         parser.error("--output must end in .npy")
     if output.exists():
         parser.error(f"Output already exists: {output}")
-    policy, cfg = load_policy(args.ckpt, args.normalizer, args.device)
+    policy, cfg = load_policy(args.ckpt, args.normalizer, args.device, args.weights)
     torch.manual_seed(args.seed)
     observation = read_observation(args.zarr, cfg, args.episode, args.frame, args.device)
     actions = predict_actions(policy, observation)

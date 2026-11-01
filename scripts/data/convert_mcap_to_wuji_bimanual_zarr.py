@@ -11,6 +11,7 @@ import bisect
 import glob
 import os
 import shutil
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -236,7 +237,9 @@ def eval_vector_expr(expr: str, msg: Any) -> np.ndarray:
     arr = np.asarray(value, dtype=np.float32)
     if arr.ndim != 1:
         raise ValueError(f"vector expr must produce a 1D array, got shape={arr.shape}")
-    return np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+    if not np.isfinite(arr).all():
+        raise ValueError("vector expr produced non-finite joint values")
+    return arr
 
 
 def extract_stream_value(spec: StreamSpec, msg: Any, resize_hw: Optional[Sequence[int]]) -> np.ndarray:
@@ -268,7 +271,11 @@ def collect_stream_samples(
     for topic, timestamp, msg in iter_rosbag_messages(source_path, topics):
         name = by_topic[topic]
         spec = stream_specs[name]
-        samples[name].append((timestamp, extract_stream_value(spec, msg, resize_hw)))
+        try:
+            value = extract_stream_value(spec, msg, resize_hw)
+        except Exception as exc:
+            raise ValueError(f"stream {name!r} ({topic}) at {timestamp}: {exc}") from exc
+        samples[name].append((timestamp, value))
     return samples
 
 
@@ -405,13 +412,8 @@ def append_to_zarr(arr: Any, data: np.ndarray) -> None:
     arr[old_n:new_n] = data
 
 
-def write_zarr(output_path: str, episodes: Sequence[Dict[str, np.ndarray]], overwrite: bool) -> None:
+def _write_zarr(output_path: str, episodes: Iterable[Dict[str, np.ndarray]]) -> None:
     import zarr
-
-    if os.path.exists(output_path):
-        if not overwrite:
-            raise FileExistsError(output_path)
-        shutil.rmtree(output_path)
 
     root = zarr.open(output_path, mode="w")
     data_group = root.create_group("data")
@@ -434,7 +436,28 @@ def write_zarr(output_path: str, episodes: Sequence[Dict[str, np.ndarray]], over
         episode_ends.append(total_steps)
         print(f"[write] episode {episode_idx + 1}: {total_steps} total steps")
 
+    if arrays is None:
+        raise RuntimeError("no episodes were converted")
     meta_group.create_dataset("episode_ends", data=np.asarray(episode_ends, dtype=np.int64))
+
+
+def write_zarr(output_path: str, episodes: Iterable[Dict[str, np.ndarray]], overwrite: bool) -> None:
+    output = Path(output_path).expanduser().resolve()
+    if output.exists() and not overwrite:
+        raise FileExistsError(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = Path(tempfile.mkdtemp(prefix=f".{output.name}.", dir=output.parent))
+    try:
+        _write_zarr(str(temporary_path), episodes)
+        # Keep any existing dataset intact until conversion has completed.
+        if output.exists():
+            if not overwrite:
+                raise FileExistsError(output)
+            shutil.rmtree(output)
+        temporary_path.rename(output)
+    except BaseException:
+        shutil.rmtree(temporary_path, ignore_errors=True)
+        raise
 
 
 def main() -> None:
@@ -447,55 +470,60 @@ def main() -> None:
     ensure_required_streams(stream_specs, required_streams)
 
     input_paths = resolve_input_paths(cfg)
+    output_path = Path(args.output).expanduser().resolve()
+    for source_path in input_paths:
+        source = Path(source_path).expanduser().resolve()
+        if (source == output_path or source in output_path.parents
+                or output_path in source.parents):
+            raise ValueError(f"Input and output paths must not overlap: {source}")
     resize_hw = cfg.get("resize_hw")
     reference_stream = str(cfg.get("reference_stream", "left_arm_commands"))
     tolerance_sec = float(cfg.get("timestamp_tolerance_sec", 0.1))
     min_frames = int(cfg.get("min_frames", 1))
 
-    episodes = []
-    skipped_bags = []
-    for source_path in input_paths:
-        print(f"[read] {source_path}")
-        try:
-            samples = collect_stream_samples(source_path, stream_specs, resize_hw)
-            aligned = align_episode_samples(samples, reference_stream, tolerance_sec, required_streams)
-        except Exception as e:
-            # Any per-bag failure (drop-rate / missing-stream sanity checks, OR a
-            # corrupt/empty metadata.yaml that makes the rosbags reader raise) is
-            # logged and skipped instead of killing the whole 200-bag conversion.
-            print(f"[skip] {source_path}: {type(e).__name__}: {e}")
-            skipped_bags.append((source_path, str(e)))
-            continue
+    def convert_episodes():
+        skipped_bags = []
+        converted_count = 0
+        for source_path in input_paths:
+            print(f"[read] {source_path}")
+            try:
+                samples = collect_stream_samples(source_path, stream_specs, resize_hw)
+                aligned = align_episode_samples(samples, reference_stream, tolerance_sec, required_streams)
+                # Release decoded source frames once aligned arrays are available.
+                del samples
 
-        episode = {}
-        for name, array in aligned.items():
-            if name in COMMAND_STREAMS:
+                episode = {}
+                for name, array in aligned.items():
+                    if name in COMMAND_STREAMS:
+                        continue
+                    episode[name] = array.astype(np.float32) if array.dtype.kind in "iu" and array.ndim == 2 else array
+                episode["action"] = build_action(aligned)
+                del aligned
+            except Exception as exc:
+                print(f"[skip] {source_path}: {type(exc).__name__}: {exc}")
+                skipped_bags.append((source_path, str(exc)))
                 continue
-            episode[name] = array.astype(np.float32) if array.dtype.kind in "iu" and array.ndim == 2 else array
 
-        episode["action"] = build_action(aligned)
+            episode_len = int(episode["action"].shape[0])
+            if episode_len < min_frames:
+                print(f"[skip] {source_path}: only {episode_len} frames (< {min_frames})")
+                skipped_bags.append((source_path, f"only {episode_len} frames"))
+                continue
 
-        episode_len = int(episode["action"].shape[0])
-        if episode_len < min_frames:
-            print(f"[skip] {source_path}: only {episode_len} frames (< {min_frames})")
-            skipped_bags.append((source_path, f"only {episode_len} frames"))
-            continue
+            print(f"[ok] {source_path}: {episode_len} aligned steps")
+            for key, value in episode.items():
+                print(f"  - {key}: shape={value.shape}, dtype={value.dtype}")
+            converted_count += 1
+            yield episode
+            del episode
 
-        print(f"[ok] {source_path}: {episode_len} aligned steps")
-        for key, value in episode.items():
-            print(f"  - {key}: shape={value.shape}, dtype={value.dtype}")
-        episodes.append(episode)
+        if skipped_bags:
+            print(f"\n[summary] skipped {len(skipped_bags)} bag(s):")
+            for path, reason in skipped_bags:
+                print(f"  - {path}: {reason}")
+        print(f"[summary] kept {converted_count}/{len(input_paths)} bags")
 
-    if skipped_bags:
-        print(f"\n[summary] skipped {len(skipped_bags)} bag(s):")
-        for path, reason in skipped_bags:
-            print(f"  - {path}: {reason}")
-        print(f"[summary] kept {len(episodes)}/{len(input_paths)} bags")
-
-    if not episodes:
-        raise RuntimeError("no episodes were converted")
-
-    write_zarr(args.output, episodes, overwrite=args.overwrite)
+    write_zarr(str(output_path), convert_episodes(), overwrite=args.overwrite)
     print(f"[done] wrote zarr to {args.output}")
 
 

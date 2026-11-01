@@ -17,6 +17,9 @@ openloop_out/
 
 # Downloaded model checkpoints
 checkpoints/
+predictions/
+dist/
+build/
 
 # Model weights and local array artifacts
 *.pt

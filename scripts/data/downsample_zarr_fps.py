@@ -19,8 +19,8 @@ _project_root = _entry.resolve().parents[2]
 _sys.path.insert(0, str(_project_root))
 
 import argparse
-import os
 import shutil
+from pathlib import Path
 
 import numpy as np
 import zarr
@@ -38,9 +38,15 @@ def parse_args():
 
 def main():
     args = parse_args()
-    assert args.stride >= 1
+    if args.stride < 1 or args.block < 1:
+        raise ValueError("--stride and --block must be positive integers")
+    source_path = Path(args.input).expanduser().resolve()
+    output_path = Path(args.output).expanduser().resolve()
+    if (source_path == output_path or source_path in output_path.parents
+            or output_path in source_path.parents):
+        raise ValueError("Input and output paths must not overlap")
 
-    src = zarr.open(args.input, mode="r")
+    src = zarr.open(str(source_path), mode="r")
     ee = src["meta/episode_ends"][:].astype(np.int64)
     total = int(ee[-1])
 
@@ -59,12 +65,12 @@ def main():
     n_new = len(kept_idx)
     print(f"[plan] {len(ee)} episodes, {total} -> {n_new} frames (stride={args.stride})")
 
-    if os.path.exists(args.output):
+    if output_path.exists():
         if not args.overwrite:
-            raise FileExistsError(args.output)
-        shutil.rmtree(args.output)
+            raise FileExistsError(output_path)
+        shutil.rmtree(output_path)
 
-    dst = zarr.open(args.output, mode="w")
+    dst = zarr.open(str(output_path), mode="w")
     dst_data = dst.create_group("data")
     dst_meta = dst.create_group("meta")
 

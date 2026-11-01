@@ -45,7 +45,7 @@ class BaseWorkspace:
         if include_keys is None:
             include_keys = tuple(self.include_keys) + ('_output_dir',)
 
-        path.parent.mkdir(parents=False, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             'cfg': self.cfg,
             'state_dicts': dict(),
@@ -94,7 +94,8 @@ class BaseWorkspace:
             path = self.get_checkpoint_path(tag=tag)
         else:
             path = pathlib.Path(path)
-        payload = torch.load(path.open('rb'), pickle_module=dill, **kwargs)
+        kwargs.setdefault('map_location', 'cpu')
+        payload = torch.load(path.expanduser().open('rb'), pickle_module=dill, **kwargs)
         self.load_payload(payload,
             exclude_keys=exclude_keys,
             include_keys=include_keys)

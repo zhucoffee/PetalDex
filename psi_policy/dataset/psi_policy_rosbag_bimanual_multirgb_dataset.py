@@ -37,6 +37,13 @@ class PsiPolicyRosbagBimanualMultirgbDataset(BaseImageDataset):
         zarr_root: Optional[str] = None,
     ):
         super().__init__()
+        if val_ratio != 0:
+            raise ValueError(
+                "This release supports val_ratio=0 only. Use a separate held-out "
+                "dataset for evaluation; an internal validation split is not implemented."
+            )
+        if not zarr_paths:
+            raise ValueError("zarr_paths must contain at least one dataset")
         self.image_size = image_size
         self.zarr_paths = zarr_paths
         self.shape_meta = shape_meta
