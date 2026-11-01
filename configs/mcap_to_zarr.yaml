@@ -1,0 +1,56 @@
+# Set BAG_ROOT to the directory containing your rosbag recordings.
+input_glob: ${oc.env:BAG_ROOT}/rosbag_*
+resize_hw: [224, 224]
+reference_stream: cam_head_color
+timestamp_tolerance_sec: 0.035
+min_frames: 8
+required_streams:
+  - cam_head_color
+  - cam_right_wrist_color
+  - left_arm_states
+  - right_arm_states
+  - left_hand_states
+  - right_hand_states
+  - left_arm_commands
+  - right_arm_commands
+  - left_hand_commands
+  - right_hand_commands
+streams:
+  cam_head_color:
+    topic: /cam_head/color/image_raw/compressed
+    kind: image
+  cam_right_wrist_color:
+    topic: /cam_right_wrist/color/image_raw/compressed
+    kind: image
+  left_arm_states:
+    topic: /left_arm/joint_states
+    kind: vector
+    expr: "np.asarray(msg.position[:7], dtype=np.float32)"
+  right_arm_states:
+    topic: /right_arm/joint_states
+    kind: vector
+    expr: "np.asarray(msg.position[:7], dtype=np.float32)"
+  left_hand_states:
+    topic: /left_hand/joint_states
+    kind: vector
+    expr: "np.asarray(msg.position[:20], dtype=np.float32)"
+  right_hand_states:
+    topic: /right_hand/joint_states
+    kind: vector
+    expr: "np.asarray(msg.position[:20], dtype=np.float32)"
+  left_arm_commands:
+    topic: /left_arm/joint_commands
+    kind: vector
+    expr: "np.asarray(msg.position[:7], dtype=np.float32)"
+  right_arm_commands:
+    topic: /right_arm/joint_commands
+    kind: vector
+    expr: "np.asarray(msg.position[:7], dtype=np.float32)"
+  left_hand_commands:
+    topic: /left_hand/joint_commands
+    kind: vector
+    expr: "np.asarray(msg.position[:20], dtype=np.float32)"
+  right_hand_commands:
+    topic: /right_hand/joint_commands
+    kind: vector
+    expr: "np.asarray(msg.position[:20], dtype=np.float32)"

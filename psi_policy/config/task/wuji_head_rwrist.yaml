@@ -1,0 +1,50 @@
+# Bimanual Tianji Arms and Wuji Hands: head/right-wrist RGB and joint states.
+# Set dataset_path and dataset_name for each training dataset.
+name: wuji_head_rwrist
+
+image_shape: [3, 224, 224]
+dataset_path: ???          # Required CLI override: task.dataset_path=[".../xxx.zarr"]
+dataset_name: ???          # Required CLI override: task.dataset_name=xxx
+
+dataset:
+  _target_: psi_policy.dataset.psi_policy_rosbag_bimanual_multirgb_dataset.PsiPolicyRosbagBimanualMultirgbDataset
+  zarr_paths: ${task.dataset_path}
+  shape_meta: ${task.shape_meta}
+  n_obs_steps: ${n_obs_steps}
+  horizon: ${n_action_steps}
+  pad_before: 0
+  pad_after: 0
+  seed: 42
+  val_ratio: 0
+  keys: [cam_head_color, cam_right_wrist_color, right_arm_states, left_arm_states, right_hand_states, left_hand_states, action]
+
+shape_meta: &shape_meta
+  obs:
+    cam_head_color:
+      shape: ${task.image_shape}
+      type: rgb
+      horizon: ${n_obs_steps}
+    cam_right_wrist_color:
+      shape: ${task.image_shape}
+      type: rgb
+      horizon: ${n_obs_steps}
+    right_arm_states:
+      shape: [7]
+      type: low_dim
+      horizon: ${n_obs_steps}
+    left_arm_states:
+      shape: [7]
+      type: low_dim
+      horizon: ${n_obs_steps}
+    right_hand_states:
+      shape: [20]
+      type: low_dim
+      horizon: ${n_obs_steps}
+    left_hand_states:
+      shape: [20]
+      type: low_dim
+      horizon: ${n_obs_steps}
+
+  action:
+    shape: [54]
+    horizon: ${n_action_steps}

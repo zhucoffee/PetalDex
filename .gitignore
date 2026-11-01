@@ -1,0 +1,29 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.env.*
+.claude/
+/data/
+logs/
+wandb/
+*.ckpt
+*.safetensors
+*.log
+openloop_out/
+*.bak*
+.DS_Store
+
+# Downloaded model checkpoints
+checkpoints/
+
+# Model weights and local array artifacts
+*.pt
+*.pth
+*.pkl
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.zarr/
