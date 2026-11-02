@@ -1,29 +1,29 @@
-# 🌸 PetalDex
+<h1 align="center">Co-Creation in Bloom: Artistic Co-Creation Manipulation with Deformable Flower Petals</h1>
 
-Code for **Co-Creation in Bloom: Artistic Co-Creation Manipulation with Deformable Flower Petals**, RSS 2026 Workshop *Embodied4Arts*.
+<p align="center">
+  <strong>Accepted at the 1st Embodied4Arts Workshop @ RSS 2026</strong>
+</p>
 
-Policy training and offline action prediction for bimanual flower arrangement with **Tianji Arms and Wuji Hands**.
+<p align="center">
+  Kefei Zhu*, Jinzhong Gu*, Yue Xin*, Guanqi He, Yi Qu, Yaodong Yang, Yuanpei Chen, Hao Dong<br>
+  Peking University · Tsinghua University<br>
+  <sup>* Equal contribution</sup>
+</p>
 
-[Project Website](https://petaldex.github.io/) · [Dataset](https://huggingface.co/datasets/jasonGUself/PetalDex)
+<p align="center">
+  <a href="https://petaldex.github.io/">Project Website</a> ·
+  <a href="https://huggingface.co/datasets/jasonGUself/PetalDex">Dataset</a>
+</p>
 
-**Download data → Train a policy → Predict actions.**
+<p align="center">
+  <img src="docs/assets/overview.png" alt="PetalDex overview: demonstration data, imitation learning policy, and autonomous and human–robot flower-petal co-creation" width="100%">
+</p>
 
-PetalDex provides dataset converters, policy training, and offline action prediction from recorded observations. Pretrained PetalDex checkpoints and robot control drivers are not included. See the [usage guide](docs/USAGE.md) for environment requirements, checkpoint handling, and evaluation.
+**PetalDex** is a bimanual dexterous robot system for artistic human–robot co-creation with flower petals.
 
-## Repository layout
+## Quick Start
 
-| Path | Purpose |
-|---|---|
-| `petal/` | Models, datasets and training configuration |
-| `configs/` | ROS recording conversion settings |
-| `scripts/data/` | Data conversion and preparation |
-| `scripts/training/` | Single-GPU and multi-GPU training |
-| `scripts/inference/` | Model loading and action prediction |
-| `train.py` | Training entry point |
-| `pyproject.toml`, `uv.lock` | Python environment and dependencies |
-| `accelerate_config.yaml` | Training launch settings |
-
-## 🚀 Quick Start
+This repository provides dataset converters, policy training, and offline action prediction for **Tianji Arms and Wuji Hands**. Pretrained PetalDex checkpoints and robot control drivers are not included. See the [usage guide](docs/USAGE.md) for environment requirements, checkpoint handling, and evaluation.
 
 ### 1. Install
 
@@ -95,6 +95,19 @@ python scripts/data/convert_mcap_to_wuji_bimanual_zarr.py \
 ```
 
 `BAG_ROOT` contains the `rosbag_*` recording folders. Use the resulting Zarr path in the training command above.
+
+## Repository layout
+
+| Path | Purpose |
+|---|---|
+| `petal/` | Models, datasets and training configuration |
+| `configs/` | ROS recording conversion settings |
+| `scripts/data/` | Data conversion and preparation |
+| `scripts/training/` | Single-GPU and multi-GPU training |
+| `scripts/inference/` | Model loading and action prediction |
+| `train.py` | Training entry point |
+| `pyproject.toml`, `uv.lock` | Python environment and dependencies |
+| `accelerate_config.yaml` | Training launch settings |
 
 ## Contribute
 
