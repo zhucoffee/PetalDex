@@ -3,7 +3,7 @@ import zarr
 import numpy as np
 from functools import cached_property
 import numbers
-from psi_policy.common.replay_buffer import ReplayBuffer
+from petal.common.replay_buffer import ReplayBuffer
 
 class ZarrImageReference:
     """Lazy reference to an image array."""

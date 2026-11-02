@@ -5,8 +5,8 @@ import zarr
 import numpy as np
 import torch
 import torch.nn as nn
-from psi_policy.common.pytorch_util import dict_apply
-from psi_policy.model.common.dict_of_tensor_mixin import DictOfTensorMixin
+from petal.common.pytorch_util import dict_apply
+from petal.model.common.dict_of_tensor_mixin import DictOfTensorMixin
 
 
 class LinearNormalizer(DictOfTensorMixin):

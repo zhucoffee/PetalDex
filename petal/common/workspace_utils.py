@@ -56,7 +56,7 @@ class CustomHandler(logging.Handler):
 
     def emit(self, record):
 
-        custom_level = "PsiPolicy: "
+        custom_level = "PetalPolicy: "
 
         message = record.getMessage()
 

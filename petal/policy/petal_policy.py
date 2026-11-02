@@ -8,10 +8,10 @@ import time
 import torch
 import torch.nn.functional as F
 
-from psi_policy.policy.base_image_policy import BaseImagePolicy
-from psi_policy.model.common.normalizer import LinearNormalizer
-from psi_policy.model.diffusion.transformer_for_action import TransformerForAction
-from psi_policy.model.vision.timm_obs_encoder_wuji_multirgb_joint import TimmObsEncoder
+from petal.policy.base_image_policy import BaseImagePolicy
+from petal.model.common.normalizer import LinearNormalizer
+from petal.model.diffusion.transformer_for_action import TransformerForAction
+from petal.model.vision.timm_obs_encoder_wuji_multirgb_joint import TimmObsEncoder
 
 
 def noise_assignment(data, noise):
@@ -21,7 +21,7 @@ def noise_assignment(data, noise):
     _, assign = linear_sum_assignment(dist.cpu())
     return torch.from_numpy(assign).to(device)
 
-class PsiPolicy(BaseImagePolicy):
+class PetalPolicy(BaseImagePolicy):
     def __init__(self,
             shape_meta: dict,
             obs_encoder: TimmObsEncoder,
@@ -89,18 +89,18 @@ class PsiPolicy(BaseImagePolicy):
         self._qn_std = None
         if self.q_noise.get("enable"):
             assert self.action_relative, "q_noise requires action_relative=True"
-            print(f"[PsiPolicy] q_noise ENABLED: {self.q_noise}")
+            print(f"[PetalPolicy] q_noise ENABLED: {self.q_noise}")
         if self.action_relative:
             ref_dim = sum(
                 int(shape_meta['obs'][k]['shape'][0]) for k in self.relative_obs_keys
             )
             assert ref_dim == action_dim, (
-                f"[PsiPolicy] action_relative: relative_obs_keys dims sum to "
+                f"[PetalPolicy] action_relative: relative_obs_keys dims sum to "
                 f"{ref_dim} but action_dim={action_dim}. Keys (must be in action "
                 f"layout order [L_arm, R_arm, L_hand, R_hand]): {self.relative_obs_keys}"
             )
             print(
-                f"[PsiPolicy] action_relative=True; ref q = concat{self.relative_obs_keys} "
+                f"[PetalPolicy] action_relative=True; ref q = concat{self.relative_obs_keys} "
                 f"({ref_dim}-d), target = a_t - q_t"
             )
 

@@ -7,7 +7,7 @@ encoder_inputs: wuji_multirgb_joint
 encoder_name: vit-small
 
 name: ${task.dataset_name}_${encoder_name}
-_target_: psi_policy.workspace.psi_policy_workspace.PsiPolicyWorkspace
+_target_: petal.workspace.petal_workspace.PetalWorkspace
 
 task_name: ${task.name}
 shape_meta: ${task.shape_meta}
@@ -22,12 +22,12 @@ keypoint_visible_rate: 1.0
 obs_as_cond: True
 
 policy:
-  _target_: psi_policy.policy.psi_policy.PsiPolicy
+  _target_: petal.policy.petal_policy.PetalPolicy
 
   shape_meta: ${shape_meta}
 
   obs_encoder:
-    _target_: psi_policy.model.vision.timm_obs_encoder_${encoder_inputs}.TimmObsEncoder
+    _target_: petal.model.vision.timm_obs_encoder_${encoder_inputs}.TimmObsEncoder
     shape_meta: ${shape_meta}
     model_name: ${oc.select:task.backbone_model_name,vit_small_r26_s32_224}
     use_augmentation: True
@@ -39,7 +39,7 @@ policy:
   use_attn_mask: False
 
 ema:
-  _target_: psi_policy.model.diffusion.ema_model.EMAModel
+  _target_: petal.model.diffusion.ema_model.EMAModel
   update_after_step: 0
   inv_gamma: 1.0
   power: 0.75

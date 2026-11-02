@@ -7,8 +7,8 @@ import timm
 from timm.models.vision_transformer import Mlp, PatchEmbed
 from einops.layers.torch import Rearrange
 
-from psi_policy.model.common.module_attr_mixin import ModuleAttrMixin
-from psi_policy.common.nested_dict_util import obs_keys_by_type
+from petal.model.common.module_attr_mixin import ModuleAttrMixin
+from petal.common.nested_dict_util import obs_keys_by_type
 
 
 logger = logging.getLogger(__name__)

@@ -13,32 +13,25 @@ and its copyright notice is also retained in the root [LICENSE](LICENSE).
 
 The following file mapping records the adapted utilities. Upstream paths are
 relative to the upstream repository; PetalDex paths are relative to this
-repository. The `diffusion_policy` import namespace was changed to `psi_policy`,
-and several files contain PetalDex-specific changes.
+repository.
 
 | PetalDex file | Diffusion Policy source file |
 | --- | --- |
-| `psi_policy/common/replay_buffer.py` | `diffusion_policy/common/replay_buffer.py` |
-| `psi_policy/common/sampler.py` | `diffusion_policy/common/sampler.py` |
-| `psi_policy/common/pytorch_util.py` | `diffusion_policy/common/pytorch_util.py` |
-| `psi_policy/common/normalize_util.py` | `diffusion_policy/common/normalize_util.py` |
-| `psi_policy/common/checkpoint_util.py` | `diffusion_policy/common/checkpoint_util.py` |
-| `psi_policy/common/json_logger.py` | `diffusion_policy/common/json_logger.py` |
-| `psi_policy/common/nested_dict_util.py` | `diffusion_policy/common/nested_dict_util.py` |
-| `psi_policy/workspace/base_workspace.py` | `diffusion_policy/workspace/base_workspace.py` |
-| `psi_policy/model/common/normalizer.py` | `diffusion_policy/model/common/normalizer.py` |
-| `psi_policy/model/common/module_attr_mixin.py` | `diffusion_policy/model/common/module_attr_mixin.py` |
-| `psi_policy/model/common/dict_of_tensor_mixin.py` | `diffusion_policy/model/common/dict_of_tensor_mixin.py` |
-| `psi_policy/model/common/lr_scheduler.py` | `diffusion_policy/model/common/lr_scheduler.py` |
-| `psi_policy/model/diffusion/ema_model.py` | `diffusion_policy/model/diffusion/ema_model.py` |
-| `psi_policy/policy/base_image_policy.py` | `diffusion_policy/policy/base_image_policy.py` |
-| `psi_policy/dataset/base_dataset.py` | `diffusion_policy/dataset/base_dataset.py` |
-
-Source review: these files were compared with the corresponding files in
-[`real-stanford/diffusion_policy` on `main`](https://github.com/real-stanford/diffusion_policy/tree/main/diffusion_policy)
-on 2026-11-01. The imported snapshot does not record the original upstream
-commit. The upstream license was retrieved from
-[the official repository](https://github.com/real-stanford/diffusion_policy/blob/main/LICENSE).
+| `petal/common/replay_buffer.py` | `diffusion_policy/common/replay_buffer.py` |
+| `petal/common/sampler.py` | `diffusion_policy/common/sampler.py` |
+| `petal/common/pytorch_util.py` | `diffusion_policy/common/pytorch_util.py` |
+| `petal/common/normalize_util.py` | `diffusion_policy/common/normalize_util.py` |
+| `petal/common/checkpoint_util.py` | `diffusion_policy/common/checkpoint_util.py` |
+| `petal/common/json_logger.py` | `diffusion_policy/common/json_logger.py` |
+| `petal/common/nested_dict_util.py` | `diffusion_policy/common/nested_dict_util.py` |
+| `petal/workspace/base_workspace.py` | `diffusion_policy/workspace/base_workspace.py` |
+| `petal/model/common/normalizer.py` | `diffusion_policy/model/common/normalizer.py` |
+| `petal/model/common/module_attr_mixin.py` | `diffusion_policy/model/common/module_attr_mixin.py` |
+| `petal/model/common/dict_of_tensor_mixin.py` | `diffusion_policy/model/common/dict_of_tensor_mixin.py` |
+| `petal/model/common/lr_scheduler.py` | `diffusion_policy/model/common/lr_scheduler.py` |
+| `petal/model/diffusion/ema_model.py` | `diffusion_policy/model/diffusion/ema_model.py` |
+| `petal/policy/base_image_policy.py` | `diffusion_policy/policy/base_image_policy.py` |
+| `petal/dataset/base_dataset.py` | `diffusion_policy/dataset/base_dataset.py` |
 
 ## Dependencies and pretrained weights
 
@@ -54,6 +47,5 @@ terms supplied with those weights. No pretrained weights are bundled here.
 ## Dataset
 
 The [PetalDex dataset](https://huggingface.co/datasets/jasonGUself/PetalDex)
-is hosted separately. Its dataset card declares Apache-2.0 as of 2026-11-01.
-Consult that dataset repository for its applicable terms; the code license in
-this repository does not change them.
+is hosted separately. See its dataset card for the applicable license and terms.
+The code license in this repository does not change them.

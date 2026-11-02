@@ -8,13 +8,13 @@ Policy training and offline action prediction for bimanual flower arrangement wi
 
 **Download data → Train a policy → Predict actions.**
 
-This release includes dataset converters, the policy and training configuration, and prediction from recorded observations. Pretrained PetalDex checkpoints and hardware control drivers are not included. The release has been reviewed statically; a fresh installation, end-to-end training, and real-robot execution have not been verified. See [release scope and limitations](docs/REPRODUCIBILITY.md).
+PetalDex provides dataset converters, policy training, and offline action prediction from recorded observations. Pretrained PetalDex checkpoints and robot control drivers are not included. See [usage notes](docs/REPRODUCIBILITY.md) for requirements, checkpoint handling, and evaluation.
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `psi_policy/` | Models, datasets and training configuration |
+| `petal/` | Models, datasets and training configuration |
 | `configs/` | ROS recording conversion settings |
 | `scripts/data/` | Data conversion and preparation |
 | `scripts/training/` | Single-GPU and multi-GPU training |
@@ -37,7 +37,7 @@ source .venv/bin/activate
 export PROJECT_ROOT="$PWD"
 ```
 
-Python 3.9.23 and PyTorch 2.8.0 are specified in `pyproject.toml`. Run the commands below from the project root with this environment activated. The supplied environment and lock file use the Aliyun PyPI mirror; package versions and artifact sources are retained from the original environment. Other operating systems and dependency versions are not covered by this lock file.
+Python 3.9.23 and PyTorch 2.8.0 are specified in `pyproject.toml`. Run the commands below from the project root with this environment activated. The lock file uses the Aliyun PyPI mirror and targets Linux x86_64.
 
 ### 2. Download and prepare data
 
@@ -64,7 +64,7 @@ bash scripts/training/run_train_ddp.sh \
 
 Arguments: dataset path, experiment name, batch size per GPU, epochs and GPU IDs. For two GPUs, replace `0` with `0,1`.
 
-Checkpoints and `normalizer.pkl` are saved under `data/outputs/`. Training settings are in `psi_policy/config/psi_policy_workspace.yaml`. W&B logging defaults to offline; the image encoder downloads pretrained weights on first use. The default configuration uses all episodes for training (`val_ratio: 0`); it does not produce held-out validation metrics.
+Checkpoints and `normalizer.pkl` are saved under `data/outputs/`. Training settings are in `petal/config/petal_workspace.yaml`. W&B logging defaults to offline; the image encoder downloads pretrained weights on first use. The default configuration uses all episodes for training (`val_ratio: 0`); it does not produce held-out validation metrics.
 
 ### 4. Predict actions
 
@@ -117,7 +117,5 @@ If you use PetalDex in research, please cite:
 Machine-readable citation metadata is in [CITATION.cff](CITATION.cff).
 
 ## Acknowledgements and license
-
-The initial code release was prepared by **Yue Xin ([@vinkda](https://github.com/vinkda))**. This repository starts from `vinkda/PetalDex` at commit `f4c550fb1b51ee93d9f229989740a6773aeb9b20` and adds community documentation and release fixes. The internal `psi_policy` package name is retained for configuration and checkpoint compatibility.
 
 We thank [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) for the adapted utilities. Code is released under the [MIT License](LICENSE); retained upstream notices and file mappings are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The [dataset](https://huggingface.co/datasets/jasonGUself/PetalDex) is distributed separately under the terms in its dataset card.

@@ -4,12 +4,12 @@ import torch
 import torch.nn.functional as F
 import os
 
-from psi_policy.common.normalize_util import get_image_range_normalizer
-from psi_policy.common.streaming_replay_buffer import StreamingReplayBuffer
-from psi_policy.common.sampler import SequenceSampler, get_val_mask, downsample_mask
-from psi_policy.model.common.normalizer import LinearNormalizer
-from psi_policy.dataset.base_dataset import BaseImageDataset
-from psi_policy.common.nested_dict_util import obs_keys_by_type
+from petal.common.normalize_util import get_image_range_normalizer
+from petal.common.streaming_replay_buffer import StreamingReplayBuffer
+from petal.common.sampler import SequenceSampler, get_val_mask, downsample_mask
+from petal.model.common.normalizer import LinearNormalizer
+from petal.dataset.base_dataset import BaseImageDataset
+from petal.common.nested_dict_util import obs_keys_by_type
 
 
 def _zarr_path(rel: str, zarr_root: Optional[str]) -> str:
@@ -20,7 +20,7 @@ def _zarr_path(rel: str, zarr_root: Optional[str]) -> str:
     return rel if zarr_root == "" else os.path.join(zarr_root, rel)
 
 
-class PsiPolicyRosbagBimanualMultirgbDataset(BaseImageDataset):
+class PetalRosbagBimanualMultirgbDataset(BaseImageDataset):
     def __init__(
         self,
         zarr_paths,

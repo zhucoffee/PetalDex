@@ -24,19 +24,19 @@ from contextlib import nullcontext
 
 from accelerate import Accelerator, DistributedDataParallelKwargs
 
-from psi_policy.common.pytorch_util import dict_apply
-from psi_policy.workspace.base_workspace import BaseWorkspace
-from psi_policy.dataset.base_dataset import BaseImageDataset
-from psi_policy.policy.psi_policy import PsiPolicy
-from psi_policy.common.checkpoint_util import TopKCheckpointManager
-from psi_policy.common.json_logger import JsonLogger
-from psi_policy.model.diffusion.ema_model import EMAModel
-from psi_policy.model.common.lr_scheduler import get_scheduler
-from psi_policy.common.workspace_utils import log_action_mse, create_logger, start_epoch_index_from_checkpoint_path
+from petal.common.pytorch_util import dict_apply
+from petal.workspace.base_workspace import BaseWorkspace
+from petal.dataset.base_dataset import BaseImageDataset
+from petal.policy.petal_policy import PetalPolicy
+from petal.common.checkpoint_util import TopKCheckpointManager
+from petal.common.json_logger import JsonLogger
+from petal.model.diffusion.ema_model import EMAModel
+from petal.model.common.lr_scheduler import get_scheduler
+from petal.common.workspace_utils import log_action_mse, create_logger, start_epoch_index_from_checkpoint_path
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
-class PsiPolicyWorkspace(BaseWorkspace):
+class PetalWorkspace(BaseWorkspace):
     include_keys = ['global_step', 'optimizer_step', 'epoch']
 
     def __init__(self, cfg: OmegaConf, normalizer_path: str=None):
@@ -49,14 +49,14 @@ class PsiPolicyWorkspace(BaseWorkspace):
         random.seed(seed)
 
         # configure model
-        self.model: PsiPolicy
+        self.model: PetalPolicy
         model_cfg = copy.deepcopy(cfg)
         if cfg.optimizer.start_ckpt_path is not None:
             # The checkpoint supplies encoder weights; avoid a redundant download.
             OmegaConf.update(model_cfg, 'policy.obs_encoder.pretrained', False, force_add=True)
         self.model = hydra.utils.instantiate(model_cfg.policy)
 
-        self.ema_model: PsiPolicy = None
+        self.ema_model: PetalPolicy = None
         if cfg.training.use_ema:
             self.ema_model = copy.deepcopy(self.model)
 
@@ -418,7 +418,7 @@ class PsiPolicyWorkspace(BaseWorkspace):
     config_path=str(pathlib.Path(__file__).parent.parent.joinpath("config")),
     config_name=pathlib.Path(__file__).stem)
 def main(cfg):
-    workspace = PsiPolicyWorkspace(cfg)
+    workspace = PetalWorkspace(cfg)
     workspace.run()
 
 if __name__ == "__main__":

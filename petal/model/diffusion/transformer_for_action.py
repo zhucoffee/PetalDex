@@ -9,7 +9,7 @@ from functools import partial
 
 from torch.jit import Final
 from timm.models.vision_transformer import Attention, Mlp, RmsNorm, use_fused_attn
-from psi_policy.model.common.module_attr_mixin import ModuleAttrMixin
+from petal.model.common.module_attr_mixin import ModuleAttrMixin
 
 logger = logging.getLogger(__name__)
 

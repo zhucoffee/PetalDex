@@ -8,7 +8,7 @@ import hydra
 from omegaconf import OmegaConf
 import pathlib
 
-from psi_policy.workspace.base_workspace import BaseWorkspace
+from petal.workspace.base_workspace import BaseWorkspace
 
 PROJECT_ROOT = str(pathlib.Path(__file__).resolve().parent)
 os.environ["PROJECT_ROOT"] = PROJECT_ROOT
@@ -19,8 +19,8 @@ OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 @hydra.main(
     version_base=None,
-    config_path=os.path.join(PROJECT_ROOT, 'psi_policy', 'config'),
-    config_name="psi_policy_workspace"
+    config_path=os.path.join(PROJECT_ROOT, 'petal', 'config'),
+    config_name="petal_workspace"
 )
 def train(cfg: OmegaConf):
     OmegaConf.resolve(cfg)

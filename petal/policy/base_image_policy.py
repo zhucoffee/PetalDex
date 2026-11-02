@@ -1,8 +1,8 @@
 from typing import Dict
 import torch
 import torch.nn as nn
-from psi_policy.model.common.module_attr_mixin import ModuleAttrMixin
-from psi_policy.model.common.normalizer import LinearNormalizer
+from petal.model.common.module_attr_mixin import ModuleAttrMixin
+from petal.model.common.normalizer import LinearNormalizer
 
 class BaseImagePolicy(ModuleAttrMixin):
 

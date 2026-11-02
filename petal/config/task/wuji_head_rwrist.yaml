@@ -7,7 +7,7 @@ dataset_path: ???          # Required CLI override: task.dataset_path=[".../xxx.
 dataset_name: ???          # Required CLI override: task.dataset_name=xxx
 
 dataset:
-  _target_: psi_policy.dataset.psi_policy_rosbag_bimanual_multirgb_dataset.PsiPolicyRosbagBimanualMultirgbDataset
+  _target_: petal.dataset.petal_rosbag_bimanual_multirgb_dataset.PetalRosbagBimanualMultirgbDataset
   zarr_paths: ${task.dataset_path}
   shape_meta: ${task.shape_meta}
   n_obs_steps: ${n_obs_steps}
