@@ -4,7 +4,7 @@ What problem does this solve, and what behavior changes?
 
 ## Validation
 
-What was checked? Distinguish static review, installation, conversion, training, offline prediction, and robot execution. State checks that could not be run.
+Describe how you tested the change, including commands, environment, and relevant results.
 
 ## Compatibility and attribution
 

@@ -1,6 +1,6 @@
 # Data format
 
-Download the released demonstrations from [jasonGUself/PetalDex](https://huggingface.co/datasets/jasonGUself/PetalDex). The dataset repository controls dataset terms, versioning, and download availability.
+Download demonstrations from the [PetalDex dataset](https://huggingface.co/datasets/jasonGUself/PetalDex). See its dataset card for available subsets and licensing.
 
 ## Released HDF5 episodes
 

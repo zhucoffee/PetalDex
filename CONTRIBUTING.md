@@ -10,9 +10,9 @@ Include the repository commit, OS, Python and PyTorch versions, GPU and CUDA dri
 
 1. Fork the repository and create a branch for one focused change.
 2. Describe the problem, the resulting behavior, and any compatibility changes.
-3. State what you checked and what you could not run. For policy changes, distinguish offline prediction, training, and real-robot evaluation.
+3. Describe how you tested the change, including commands, environment, and relevant results.
 4. Preserve third-party copyright and license notices and acknowledge new dependencies.
 
-Include the commands, environment, and results used to validate your change. Keep large datasets, checkpoints, generated predictions, and local environment files out of Git.
+Keep large datasets, checkpoints, generated predictions, and local environment files out of Git.
 
 Contributions are licensed under the repository's MIT License, subject to retained third-party notices.

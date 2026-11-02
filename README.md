@@ -8,7 +8,7 @@ Policy training and offline action prediction for bimanual flower arrangement wi
 
 **Download data → Train a policy → Predict actions.**
 
-PetalDex provides dataset converters, policy training, and offline action prediction from recorded observations. Pretrained PetalDex checkpoints and robot control drivers are not included. See [usage notes](docs/REPRODUCIBILITY.md) for requirements, checkpoint handling, and evaluation.
+PetalDex provides dataset converters, policy training, and offline action prediction from recorded observations. Pretrained PetalDex checkpoints and robot control drivers are not included. See the [usage guide](docs/USAGE.md) for environment requirements, checkpoint handling, and evaluation.
 
 ## Repository layout
 
@@ -118,4 +118,4 @@ Machine-readable citation metadata is in [CITATION.cff](CITATION.cff).
 
 ## Acknowledgements and license
 
-We thank [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) for the adapted utilities. Code is released under the [MIT License](LICENSE); retained upstream notices and file mappings are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The [dataset](https://huggingface.co/datasets/jasonGUself/PetalDex) is distributed separately under the terms in its dataset card.
+We thank [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) for the adapted utilities. PetalDex code is available under the [MIT License](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for upstream acknowledgements and licenses, and the [dataset card](https://huggingface.co/datasets/jasonGUself/PetalDex) for dataset licensing.
